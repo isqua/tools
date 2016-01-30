@@ -17,48 +17,75 @@
 # remote-cert-tls server
 # redirect-gateway
 # key-direction 1
-# <ca>
 # ${ca}
-# </ca>
-# <cert>
 # ${cert}
-# </cert>
-# <key>
 # ${key}
-# </key>
-# <tls-auth>
 # ${tlsauth}
-# </tls-auth>
+
+TOP_PID=$$
+
+function get_file_content() {
+	local file="$1"
+
+	if [[ -r $file ]]; then
+		cat $file
+	else
+		>&2 echo "Unable to read file: $file"
+		kill -s TERM $TOP_PID
+	fi
+}
 
 function get_key() {
 	local keyfile="./pki/private/${1}.key"
-	cat $keyfile
+	content=$(get_file_content $keyfile)
+
+	if [[ -n "$content" ]]; then
+		echo -e "<key>\n${content}\n</key>"
+	fi
 }
 
 function get_cert() {
 	local certfile="./pki/issued/${1}.crt"
-	sed -n -e '/-----BEGIN CERTIFICATE-----/,$p' $certfile
+	content=$(get_file_content $certfile | sed -n -e '/-----BEGIN CERTIFICATE-----/,$p')
+
+	if [[ -n "$content" ]]; then
+		echo -e "<cert>\n${content}\n</cert>"
+	fi
 }
 
 function get_ca() {
 	local certfile="./pki/ca.crt"
-	cat $certfile
+	content=$(get_file_content $certfile)
+
+	if [[ -n "$content" ]]; then
+		echo -e "<ca>\n${content}\n</ca>"
+	fi
 }
 
 function get_tlsauth() {
 	local tafile=$1
-	cat $tafile
+	content=$(get_file_content $tafile)
+
+	if [[ -n "$content" ]]; then
+		echo -e "<tls-auth>\n${content}\n</tls-auth>"
+	fi
 }
 
 function generate_ovpn() {
 	local template=$1
 	local name=$2
 	local ta=$3
+
 	export ca=$(get_ca)
 	export cert=$(get_cert $name)
 	export key=$(get_key $name)
-	export tlsauth=$(get_tlsauth $ta)
-	envsubst < ${template}
+	export tlsauth="" 
+
+	if [[ -n "$ta" && -r "$ta" ]]; then
+		tlsauth=$(get_tlsauth $ta)
+	fi
+	
+	envsubst < $template
 }
 
 generate_ovpn $@
