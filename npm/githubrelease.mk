@@ -1,4 +1,7 @@
 # Helper for get npm package release notes for Github
+# usage:
+#     make current - show current version
+#     make version <patch | minor | major | 3.4.5> — increase npm package version
 
 REPO_LINK := https://github.com/user/repo
 
